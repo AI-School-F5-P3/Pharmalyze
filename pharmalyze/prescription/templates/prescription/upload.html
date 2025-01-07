@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="text-center">Upload Prescription</h3>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data" class="dropzone" id="prescriptionUpload">
+                        {% csrf_token %}
+                        <div class="fallback">
+                            <input type="file" name="prescription_image" accept="image/*" class="form-control">
+                        </div>
+                        <div class="dz-message">
+                            <h3>Drop prescription image here</h3>
+                            <p>Or click to select files</p>
+                        </div>
+                        <button type="submit" class="btn btn-primary mt-3">Upload and Analyze</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://unpkg.com/dropzone@5/dist/min/dropzone.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/dropzone@5/dist/min/dropzone.min.css" type="text/css" />
+{% endblock %}

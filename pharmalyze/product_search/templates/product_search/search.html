@@ -1,0 +1,148 @@
+<!-- product_search/templates/product_search/search.html -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <h1 class="text-center mb-4 text-secondary">Product Search</h1>
+            
+            <div class=""> <!-- deleted class "search-container" -->
+                <div class="input-group mb-3">
+                    <input type="text" 
+                           id="searchInput" 
+                           class="form-control form-control-lg" 
+                           placeholder="Search for products or ask health-related questions..."
+                           aria-label="Search input">
+                    <button class="btn btn-primary" type="button" id="searchButton">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                </div>
+            </div>
+
+            <!-- Results container -->
+            <div id="resultsContainer" class="mt-4">
+                <!-- Results will be dynamically inserted here -->
+            </div>
+
+            <!-- Chat container -->
+            <div id="chatContainer" class="mt-4 d-none">
+                <div class="chat-messages" id="chatMessages">
+                    <!-- Chat messages will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('searchButton').addEventListener('click', async () => {
+    const query = document.getElementById('searchInput').value;
+    
+    try {
+        const response = await fetch('/product-search/search/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ query })
+        });
+        
+        const data = await response.json();
+        
+        if (data.query_type === 'product') {
+            displayProductResults(data.results);
+        } else {
+            displayChatResponse(data.results);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+});
+
+function displayProductResults(results) {
+    const container = document.getElementById('resultsContainer');
+    container.innerHTML = ''; // Clear previous results
+    
+    results.metadatas.forEach((product, index) => {
+        const productCard = document.createElement('div');
+        productCard.className = 'card mb-3';
+        productCard.innerHTML = `
+            <div class="row g-0">
+                <div class="col-md-4">
+                    <img src="${product.image_path}" class="img-fluid rounded-start" alt="${product.name}">
+                </div>
+                <div class="col-md-8">
+                    <div class="card-body">
+                        <h5 class="card-title">${product.name}</h5>
+                        <p class="card-text">${product.description}</p>
+                        <p class="card-text"><small class="text-muted">Category: ${product.category}</small></p>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.appendChild(productCard);
+    });
+}
+
+function displayChatResponse(response) {
+    const container = document.getElementById('chatContainer');
+    container.classList.remove('d-none');
+    
+    const messagesContainer = document.getElementById('chatMessages');
+    const messageElement = document.createElement('div');
+    messageElement.className = 'chat-message';
+    messageElement.innerHTML = `
+        <div class="assistant-message">
+            ${response.content}
+        </div>
+        <div class="sources small text-muted mt-2">
+            <strong>Sources:</strong> ${response.sources.join(', ')}
+        </div>
+    `;
+    
+    messagesContainer.appendChild(messageElement);
+}
+
+// Helper function to get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+
+<style>
+.chat-message {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    background-color: #f8f9fa;
+}
+
+.assistant-message {
+    background-color: #e3f2fd;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.search-container {
+    background-color: #fff;
+    padding: 2rem;
+    border-radius: 1rem;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+</style>
+{% endblock %}

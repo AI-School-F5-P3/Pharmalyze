@@ -1,0 +1,68 @@
+<!-- image_scraper/templates/image_scraper/product_list.html -->
+{% extends 'base.html' %}
+{% load static %}
+{% load image_filters %}
+
+{% block extra_css %}
+<link href="{% static 'css/category-filter.css' %}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 product-mt">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-secondary mb-2">Imágenes de Productos</h1>
+        
+        <!-- Search and Filter Bar -->
+        <div class="sticky-top" style="z-index: 1020; top: 63px;">
+            <div class="flex justify-between items-center mb-4">
+                    <div class="search-container">
+                        <input type="text" id="searchInput" class="form-control" placeholder="Buscar productos...">
+                        <i class="fas fa-search search-icon"></i>
+                    </div>
+            </div>
+        </div>
+
+        {% if image_data %}
+        <div class="products-grid">
+            {% for category, images in image_data.items %}
+                {% if images %}
+                <div class="category-section mb-8">
+                    <h2 class="text-2xl font-semibold mb-4">{{ category|title }}</h2>
+                    <div class="product-cards">
+                        {% for image in images %}
+                        <div class="product-card">
+                            <div class="bg-white rounded-lg shadow-md overflow-hidden transition-transform hover:shadow-lg">
+                                <div class="aspect-w-1 aspect-h-1">
+                                    <img 
+                                        class="lazy-image w-full h-full object-cover"
+                                        data-src="{{ MEDIA_URL }}{{ image.path }}"
+                                        src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
+                                        alt="{{ image.title|default:category }}"
+                                    >
+                                </div>
+                                <div class="p-4">
+                                    <h3 class="product-title text-lg font-semibold mb-2">{{ image.title|default:"Unknown Product" }}</h3>
+                                    <span class="product-category inline-block bg-blue-100 text-blue-800 text-sm px-3 py-1 rounded-full">
+                                        {{ category }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-8">
+            <div class="text-gray-500">No se han encontrado imágenes.</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{% static 'js/product-list.js' %}"></script>
+{% endblock %}

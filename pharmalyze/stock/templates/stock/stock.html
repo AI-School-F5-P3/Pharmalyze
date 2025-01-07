@@ -1,0 +1,195 @@
+<!-- pharmalyze/stock/templates/stock/stock.html -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 product-mt stock-container">
+    {% if messages %}
+    <div class="messages mb-6">
+        {% for message in messages %}
+        <div class="alert alert-{% if message.tags %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Header Section -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-secondary mb-2">Gestión de Stock</h1>
+        <p class="text-secondary">Configure los ajustes de stock y gestione el inventario de productos</p>
+    </div>
+    
+    <!-- Configuration Card -->
+    <div class="stock-card">
+        <div class="card-header">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-cog text-primary fs-4 me-2"></i>
+                <h2 class="card-title mb-0">Configuración</h2>
+            </div>
+        </div>
+        <div class="card-body p-4">
+            <form method="POST" class="needs-validation" novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="config_form" value="1">
+                
+                <div class="row g-4 mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Tipo de Farmacia</label>
+                        <select name="pharmacy_type" id="pharmacy_type" class="form-select">
+                            <option value="normal" {% if config.pharmacy_type == 'normal' %}selected{% endif %}>
+                                Normal (300 días)
+                            </option>
+                            <option value="24h" {% if config.pharmacy_type == '24h' %}selected{% endif %}>
+                                24 Horas (365 días)
+                            </option>
+                            <option value="libre" {% if config.pharmacy_type == 'libre' %}selected{% endif %}>
+                                Personalizado
+                            </option>
+                        </select>
+                    </div>
+                    
+                    <div id="custom_days_container" class="col-md-6 {% if config.pharmacy_type != 'libre' %}d-none{% endif %}">
+                        <label class="form-label fw-semibold">Días Personalizados</label>
+                        <input type="number" name="custom_days" value="{{ config.custom_days|default:279 }}"
+                               class="form-control">
+                    </div>
+                </div>
+                
+                <div class="row g-4 mb-4">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">
+                            Días Mínimos de Cobertura
+                            <small class="text-muted">(Punto de Pedido)</small>
+                        </label>
+                        <input type="number" name="min_coverage_days" value="{{ config.min_coverage_days }}"
+                               class="form-control">
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Días Máximos de Cobertura</label>
+                        <input type="number" name="max_coverage_days" value="{{ config.max_coverage_days }}"
+                               class="form-control">
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Días Óptimos de Cobertura</label>
+                        <input type="number" name="optimal_coverage_days" value="{{ config.optimal_coverage_days }}"
+                               class="form-control">
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-2"></i>Guardar Configuración
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- File Upload Card -->
+    <div class="stock-card mt-4">
+        <div class="card-header">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-file-excel text-success fs-4 me-2"></i>
+                <h2 class="card-title mb-0">Subir Archivo Excel</h2>
+                <i class="fas fa-info-circle ms-2 text-muted" data-bs-toggle="tooltip" data-bs-placement="right" 
+                   title="Formato requerido: Código Nacional, Descripción, Min Farmacia (Opcional), Max Farmacia (Opcional), Stock Actual, PVP, Columnas de Ventas Mensuales"></i>
+            </div>
+        </div>
+        <div class="card-body p-4">
+            <form method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
+                {% csrf_token %}
+                <div class="mb-4">
+                    <label class="form-label fw-semibold">Seleccionar Archivo Excel</label>
+                    <input type="file" name="excel_file" accept=".xlsx,.xls" class="form-control">
+                </div>
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-upload me-2"></i>Procesar Archivo
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Products Card -->
+    {% if products %}
+    <div class="stock-card mt-4">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-box text-purple fs-4 me-2"></i>
+                    <h2 class="card-title mb-0">Productos</h2>
+                </div>
+                <div class="d-flex gap-3">
+                    <div class="search-container">
+                        <input type="text" id="searchInput" class="form-control" placeholder="Buscar productos...">
+                        <i class="fas fa-search search-icon"></i>
+                    </div>
+                    <button class="btn btn-outline-secondary" title="Filtrar por categoría">
+                        <i class="fas fa-filter"></i>
+                    </button>
+                    <a href="{% url 'stock:download_excel' %}" class="btn btn-outline-primary" title="Descargar informe">
+                        <i class="fas fa-download"></i>
+                    </a>
+                    <form method="POST" action="{% url 'stock:clear_products' %}" class="d-inline" 
+                          onsubmit="return confirm('¿Está seguro de que desea eliminar todos los productos?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger" title="Eliminar todos los productos">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="stock-table" id="productsTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Descripción</th>
+                            <th>Mín <small class="comparison-value">(Actual)</small></th>
+                            <th>Máx <small class="comparison-value">(Actual)</small></th>
+                            <th>Óptimo</th>
+                            <th>Ventas Diarias</th>
+                            <th>Stock Actual</th>
+                            <th>Valor Stock</th>
+                            <th>Categoría</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in products %}
+                        <tr>
+                            <td>{{ product.id_articu }}</td>
+                            <td>{{ product.descripcion }}</td>
+                            <td>{{ product.min_stock }} <small class="comparison-value">({{ product.min_farmacia|default:'-' }})</small></td>
+                            <td>{{ product.max_stock }} <small class="comparison-value">({{ product.max_farmacia|default:'-' }})</small></td>
+                            <td>{{ product.optimal_stock }}</td>
+                            <td>{{ product.daily_sales|floatformat:1 }}</td>
+                            <td>{{ product.stock_actual }}</td>
+                            <td>{{ product.stock_value|floatformat:2 }}€</td>
+                            <td><span class="badge bg-{{ product.category|lower }}">{{ product.category }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{% static 'js/stock.js' %}"></script>
+<script src="{% static 'js/product-search.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    })
+});
+</script>
+{% endblock %}

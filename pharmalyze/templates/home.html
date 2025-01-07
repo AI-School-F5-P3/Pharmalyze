@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block hero %}
+<div class="hero-section">
+    <div class="hero-overlay"></div>
+    <div class="container">
+        <div class="row align-items-center min-vh-100">
+            <div class="col-lg-6 hero-content">
+                <h1 class="hero-title display-1">Transform Your Pharmacy Management</h1>
+                <p class="hero-description">
+                    Leverage advanced analytics and AI to streamline operations, 
+                    enhance inventory management, and improve patient care.
+                </p>
+                <div class="hero-buttons">
+                    <button class="btn btn-primary btn-lg action-button me-3" id="start-scraping">
+                        <i class="fas fa-images me-2"></i>Scrape Products
+                    </button>
+                    <a href="{% url 'image_scraper:product_list' %}" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-eye me-2"></i>View Products
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-6 hero-image">
+                <div class="video-container">
+                    <video autoplay loop muted playsinline class="img-fluid rounded shadow">
+                        <source src="{% static 'media/videos/pharmalyze_no_sound.mp4' %}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+            </div>
+            <!-- Progress Section -->
+            <div id="progress-section" class="col-12 mt-4" style="display: none;">
+                <div class="progress" style="height: 25px;">
+                    <div id="progress-bar" 
+                            class="progress-bar progress-bar-striped progress-bar-animated" 
+                            role="progressbar" 
+                            style="width: 0%">
+                        0%
+                    </div>
+                </div>
+                <p id="status-message" class="text-center mt-2">Starting scraping process...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="features-section">
+    <div class="container">
+        <h2 class="section-title text-center mb-5">Key Features</h2>
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="feature-card">
+                    <i class="fas fa-robot feature-icon"></i>
+                    <h3>AI-Powered Analysis</h3>
+                    <p>Automated image processing and product categorization using advanced machine learning algorithms.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="feature-card">
+                    <i class="fas fa-chart-bar feature-icon"></i>
+                    <h3>Real-time Insights</h3>
+                    <p>Monitor key performance indicators and stock levels with intuitive dashboards.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="feature-card">
+                    <i class="fas fa-file-medical-alt feature-icon"></i>
+                    <h3>Prescription OCR</h3>
+                    <p>Digitize handwritten prescriptions with our advanced optical character recognition system.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const startButton = document.getElementById('start-scraping');
+        const progressSection = document.getElementById('progress-section');
+        const progressBar = document.getElementById('progress-bar');
+        const statusMessage = document.getElementById('status-message');
+    
+        let isScrapingInProgress = false;
+        let progressCheckInterval = null;
+    
+        startButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            if (isScrapingInProgress) {
+                return;
+            }
+    
+            isScrapingInProgress = true;
+            startButton.disabled = true;
+            progressSection.style.display = 'block';
+            
+            fetch('{% url "image_scraper:start_scraping" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'started') {
+                    checkProgress();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                statusMessage.textContent = 'Error starting the scraping process';
+                progressBar.classList.add('bg-danger');
+                isScrapingInProgress = false;
+                startButton.disabled = false;
+                if (progressCheckInterval) {
+                    clearInterval(progressCheckInterval);
+                }
+            });
+        });
+    
+        function checkProgress() {
+            // Clear any existing interval
+            if (progressCheckInterval) {
+                clearInterval(progressCheckInterval);
+            }
+    
+            // Set up new interval for checking progress
+            progressCheckInterval = setInterval(() => {
+                if (!isScrapingInProgress) {
+                    clearInterval(progressCheckInterval);
+                    return;
+                }
+    
+                fetch('{% url "image_scraper:get_progress" %}')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'complete') {
+                            clearInterval(progressCheckInterval);
+                            progressBar.style.width = '100%';
+                            progressBar.textContent = '100%';
+                            statusMessage.textContent = `Completed! Downloaded ${data.data} images.`;
+                            isScrapingInProgress = false;
+                            
+                            // Redirect after completion
+                            setTimeout(() => {
+                                window.location.href = '{% url "image_scraper:product_list" %}';
+                            }, 1000);
+                        } else if (data.status === 'error') {
+                            clearInterval(progressCheckInterval);
+                            statusMessage.textContent = `Error: ${data.data}`;
+                            progressBar.classList.add('bg-danger');
+                            isScrapingInProgress = false;
+                            startButton.disabled = false;
+                        } else {
+                            const progress = data.progress || 0;
+                            progressBar.style.width = `${progress}%`;
+                            progressBar.textContent = `${progress}%`;
+                            if (data.current && data.total) {
+                                statusMessage.textContent = `Processing: ${data.current} of ${data.total} images`;
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        statusMessage.textContent = 'Error checking progress';
+                        progressBar.classList.add('bg-danger');
+                        isScrapingInProgress = false;
+                        startButton.disabled = false;
+                        clearInterval(progressCheckInterval);
+                    });
+            }, 1000);
+        }
+    
+        // Helper function to get CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    });
+</script>
+{% endblock %}
+{% endblock %}
